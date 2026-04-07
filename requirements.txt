@@ -1,0 +1,4 @@
+Markdown==3.10.2
+python-dotenv==1.2.2
+Requests==2.33.1
+rich==14.3.3

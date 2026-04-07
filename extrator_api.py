@@ -6,9 +6,9 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 
+import questionary
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 console = Console()
@@ -91,29 +91,33 @@ def escolher_espaco(headers):
         console.print("[red]❌ Nenhum projeto encontrado.[/red]")
         return None
         
-    table = Table(title="📚 SEUS PROJETOS DISPONÍVEIS", show_header=True, header_style="bold magenta")
-    table.add_column("ID", style="dim", width=4, justify="center")
-    table.add_column("Projeto", style="bold white")
-    table.add_column("Organização", style="cyan")
-
-    for i, espaco in enumerate(espacos):
-        table.add_row(str(i+1), espaco.get('title', 'Sem Nome'), espaco.get('org_name', ''))
+    # --- NOVO MENU INTERATIVO (MOUSE E SETAS) ---
+    print("\n")
+    opcoes = []
+    for sp in espacos:
+        titulo = sp.get('title', 'Sem Nome')
+        org_nome = sp.get('org_name', '')
+        opcoes.append(questionary.Choice(f"📚 {titulo} (Org: {org_nome})", value=sp))
         
-    console.print(table)
-    
-    while True:
-        try:
-            escolha = console.input("\n👉 [bold yellow]Digite o NÚMERO do projeto que deseja exportar (ou 'q' para sair):[/bold yellow] ")
-            if escolha.lower() == 'q': return None
-            escolha = int(escolha)
-            if 1 <= escolha <= len(espacos): return espacos[escolha-1]
-            console.print("[red]⚠️ Número inválido. Escolha uma das opções da tabela.[/red]")
-        except ValueError:
-            console.print("[red]⚠️ Por favor, digite apenas números.[/red]")
+    opcoes.append(questionary.Choice("❌ Cancelar e Sair", value=None))
+
+    espaco_escolhido = questionary.select(
+        "Selecione o projeto que deseja exportar:",
+        choices=opcoes,
+        pointer="👉",
+        use_indicator=True,
+        style=questionary.Style([
+            ('pointer', 'fg:#00ffff bold'),
+            ('highlighted', 'fg:#00ffff bold'),
+            ('question', 'bold'),
+        ])
+    ).ask()
+
+    return espaco_escolhido
 
 def gerar_html():
     os.system('cls' if os.name == 'nt' else 'clear')
-    console.print(Panel.fit("[bold blue]Codex Extractor v2.1[/bold blue]\n[dim]Exportador Web App + Auto-Folder[/dim]", border_style="blue"))
+    console.print(Panel.fit("[bold blue]Codex Extractor v2.2[/bold blue]\n[dim]Exportador Web App + Menu Interativo[/dim]", border_style="blue"))
     
     load_dotenv()
     TOKEN = os.getenv("GITBOOK_TOKEN")
@@ -123,7 +127,8 @@ def gerar_html():
         
     HEADERS = {"Authorization": f"Bearer {TOKEN}"}
     espaco_escolhido = escolher_espaco(HEADERS)
-    if not espaco_escolhido: return
+    if not espaco_escolhido: 
+        return console.print("[yellow]Extração cancelada pelo usuário.[/yellow]")
         
     SPACE_ID = espaco_escolhido['id']
     nome_projeto = espaco_escolhido.get('title', 'Codex')
@@ -501,9 +506,6 @@ def gerar_html():
     </html>
     """
     
-    # ---------------------------------------------------------
-    # NOVIDADE: CRIANDO A PASTA "exportacoes" AUTOMATICAMENTE
-    # ---------------------------------------------------------
     pasta_saida = "exportacoes"
     if not os.path.exists(pasta_saida):
         os.makedirs(pasta_saida)

@@ -6,16 +6,13 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 
-# --- NOVAS BIBLIOTECAS VISUAIS ---
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
-from rich import print as rprint
 
 console = Console()
 
-# --- SISTEMA DE RESILIÊNCIA DA API ---
 def fetch_com_resiliencia(url, headers, max_tentativas=4):
     for tentativa in range(max_tentativas):
         res = requests.get(url, headers=headers)
@@ -39,7 +36,7 @@ def limpar_markdown_gitbook(texto_md):
         cor = cores.get(estilo, "blue")
         icone = icones.get(estilo, "💡")
         
-        conteudo_html = markdown.markdown(conteudo, extensions=['extra', 'sane_lists', 'toc'])
+        conteudo_html = markdown.markdown(conteudo, extensions=['extra', 'sane_lists', 'toc', 'tables'])
         
         return f"""
 <div class="my-6 p-4 lg:p-5 rounded-xl border-l-8 border-{cor}-500 bg-{cor}-50/50 dark:bg-{cor}-900/30 backdrop-blur-sm text-{cor}-900 dark:text-{cor}-100 shadow-sm print-hint transition-colors">
@@ -64,7 +61,6 @@ def buscar_conteudo_recursivo(pages, nivel=0):
     return lista_final
 
 def contar_total_paginas(itens):
-    """ Conta o total de páginas para calibrar a barra de progresso """
     total = 0
     for item in itens:
         total += 1
@@ -95,7 +91,6 @@ def escolher_espaco(headers):
         console.print("[red]❌ Nenhum projeto encontrado.[/red]")
         return None
         
-    # --- TABELA VISUAL DOS PROJETOS ---
     table = Table(title="📚 SEUS PROJETOS DISPONÍVEIS", show_header=True, header_style="bold magenta")
     table.add_column("ID", style="dim", width=4, justify="center")
     table.add_column("Projeto", style="bold white")
@@ -117,8 +112,8 @@ def escolher_espaco(headers):
             console.print("[red]⚠️ Por favor, digite apenas números.[/red]")
 
 def gerar_html():
-    os.system('cls' if os.name == 'nt' else 'clear') # Limpa a tela antes de começar
-    console.print(Panel.fit("[bold blue]Codex Extractor v1.0[/bold blue]\n[dim]Exportador de Manuais de RPG[/dim]", border_style="blue"))
+    os.system('cls' if os.name == 'nt' else 'clear')
+    console.print(Panel.fit("[bold blue]Codex Extractor v2.1[/bold blue]\n[dim]Exportador Web App + Auto-Folder[/dim]", border_style="blue"))
     
     load_dotenv()
     TOKEN = os.getenv("GITBOOK_TOKEN")
@@ -142,7 +137,6 @@ def gerar_html():
     html_corpo = ""
     contador = 0
 
-    # --- BARRA DE PROGRESSO ANIMADA ---
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -162,7 +156,6 @@ def gerar_html():
                 idx = contador
                 contador += 1
                 
-                # Atualiza o texto da barra de progresso com o nome do capítulo atual
                 titulo_curto = (item['title'][:25] + '..') if len(item['title']) > 25 else item['title']
                 progress.update(task_id, description=f"[cyan]Baixando: {titulo_curto}")
                 
@@ -170,7 +163,13 @@ def gerar_html():
                 md_puro = res.json().get("markdown", "") if res and res.status_code == 200 else ""
                 
                 md_limpo = limpar_markdown_gitbook(md_puro)
-                corpo_pag = markdown.markdown(md_limpo, extensions=['extra', 'sane_lists', 'toc'])
+                
+                corpo_pag = markdown.markdown(md_limpo, extensions=['extra', 'sane_lists', 'toc', 'tables'])
+                
+                corpo_pag = corpo_pag.replace('<table>', '<div class="overflow-x-auto my-8 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm"><table class="min-w-full m-0">')
+                corpo_pag = corpo_pag.replace('</table>', '</table></div>')
+                corpo_pag = corpo_pag.replace('<th>', '<th class="bg-slate-50 dark:bg-slate-800/50 p-4 font-bold text-slate-900 dark:text-white">')
+                corpo_pag = corpo_pag.replace('<td>', '<td class="border-t border-slate-200 dark:border-slate-700 p-4">')
 
                 classe_quebra = "capitulo-principal" if item['nivel'] == 0 else ""
                 html_corpo += f"""
@@ -210,7 +209,6 @@ def gerar_html():
                     </li>
                     '''
                     
-                # Avança a barra de progresso!
                 progress.advance(task_id)
                     
             return resultado_sidebar
@@ -246,14 +244,14 @@ def gerar_html():
             .sidebar-glass {{ background: rgba(248, 250, 252, 0.95); backdrop-filter: blur(12px); }}
             .dark .sidebar-glass {{ background: rgba(15, 23, 42, 0.95); }}
             
-            ::-webkit-scrollbar {{ width: 6px; }}
+            ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
             ::-webkit-scrollbar-track {{ background: transparent; }}
             ::-webkit-scrollbar-thumb {{ background: #cbd5e1; border-radius: 10px; }}
             .dark ::-webkit-scrollbar-thumb {{ background: #475569; }}
             
             @media print {{
                 html, body {{ height: auto !important; overflow: visible !important; display: block !important; background: white !important; color: black !important; }}
-                aside, #mobile-header, #sidebar-overlay, #mini-toc, .theme-toggle {{ display: none !important; }}
+                aside, #mobile-header, #sidebar-overlay, #mini-toc, .theme-toggle, #dice-toast {{ display: none !important; }}
                 main {{ margin-left: 0 !important; width: 100% !important; padding: 0 !important; }}
                 .capa-pdf {{ display: flex !important; flex-direction: column; justify-content: center; align-items: center; height: 100vh; page-break-after: always; }}
                 .titulo-tela {{ display: none !important; }}
@@ -261,6 +259,7 @@ def gerar_html():
                 section {{ page-break-inside: avoid; break-inside: auto; }}
                 h2, h3, h4 {{ page-break-after: avoid; }}
                 .print-hint {{ border-left-width: 4px !important; border-left-style: solid !important; border-color: #cbd5e1 !important; }}
+                .overflow-x-auto {{ overflow: visible !important; border: none !important; box-shadow: none !important; }}
             }}
             @media screen {{ .capa-pdf {{ display: none !important; }} }}
         </style>
@@ -312,6 +311,11 @@ def gerar_html():
                 <div id="mini-toc-links" class="space-y-2 max-h-[60vh] overflow-y-auto scrollbar-hide"></div>
             </div>
 
+            <div id="dice-toast" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900 dark:bg-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-4 transition-all duration-300 translate-y-24 opacity-0 pointer-events-none font-mono font-bold border border-slate-700 dark:border-slate-600">
+                <span class="text-3xl animate-bounce">🎲</span>
+                <span id="dice-result" class="text-lg"></span>
+            </div>
+
             <div class="capa-pdf">
                 <h1 class="text-6xl font-black text-gray-900 mb-4 text-center">{nome_projeto}</h1>
                 <p class="text-2xl text-gray-500 font-semibold tracking-widest uppercase">Codex de Sobrevivência</p>
@@ -326,6 +330,58 @@ def gerar_html():
         </main>
 
         <script>
+            function rollDice(qtd, faces, sinal, mod) {{
+                let total = 0;
+                let rolagens = [];
+                for(let i=0; i<qtd; i++) {{
+                    let r = Math.floor(Math.random() * faces) + 1;
+                    rolagens.push(r);
+                    total += r;
+                }}
+                let mathStr = "";
+                if(mod && sinal) {{
+                    if(sinal === '+') total += parseInt(mod);
+                    else total -= parseInt(mod);
+                    mathStr = ` ${{sinal}} ${{mod}}`;
+                }}
+                
+                const toast = document.getElementById('dice-toast');
+                const resText = document.getElementById('dice-result');
+                resText.innerHTML = `<span class="text-slate-400 text-sm block mb-1">[${{rolagens.join(', ')}}]${{mathStr}}</span> <span class="text-blue-400 font-black text-3xl block">= ${{total}}</span>`;
+                
+                toast.classList.remove('translate-y-24', 'opacity-0');
+                
+                if(window.diceTimeout) clearTimeout(window.diceTimeout);
+                window.diceTimeout = setTimeout(() => {{
+                    toast.classList.add('translate-y-24', 'opacity-0');
+                }}, 4000);
+            }}
+
+            document.addEventListener('DOMContentLoaded', () => {{
+                const proseElements = document.querySelectorAll('.prose');
+                const diceRegex = /\\b(\\d+)d(\\d+)(?:\\s*([+-])\\s*(\\d+))?\\b/gi;
+
+                proseElements.forEach(container => {{
+                    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+                    const textNodes = [];
+                    let node;
+                    while(node = walker.nextNode()) {{
+                        const pNode = node.parentNode.tagName;
+                        if(pNode !== 'SCRIPT' && pNode !== 'STYLE' && pNode !== 'BUTTON' && pNode !== 'CODE' && pNode !== 'A' && pNode !== 'H1' && pNode !== 'H2' && pNode !== 'H3' && pNode !== 'TH') {{
+                            textNodes.push(node);
+                        }}
+                    }}
+
+                    textNodes.forEach(textNode => {{
+                        if(diceRegex.test(textNode.nodeValue)) {{
+                            const span = document.createElement('span');
+                            span.innerHTML = textNode.nodeValue.replace(diceRegex, `<button class="font-mono font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 rounded shadow-sm border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors cursor-pointer active:scale-95 mx-1" onclick="rollDice('$1', '$2', '$3', '$4')">$&</button>`);
+                            textNode.parentNode.replaceChild(span, textNode);
+                        }}
+                    }});
+                }});
+            }});
+
             function toggleTheme() {{
                 if (document.documentElement.classList.contains('dark')) {{
                     document.documentElement.classList.remove('dark');
@@ -445,11 +501,20 @@ def gerar_html():
     </html>
     """
     
-    arquivo_saida = f"{nome_projeto.replace(' ', '_').lower()}_codex.html"
+    # ---------------------------------------------------------
+    # NOVIDADE: CRIANDO A PASTA "exportacoes" AUTOMATICAMENTE
+    # ---------------------------------------------------------
+    pasta_saida = "exportacoes"
+    if not os.path.exists(pasta_saida):
+        os.makedirs(pasta_saida)
+        
+    nome_arquivo = f"{nome_projeto.replace(' ', '_').lower()}_codex.html"
+    arquivo_saida = os.path.join(pasta_saida, nome_arquivo)
+    
     with open(arquivo_saida, 'w', encoding='utf-8') as f:
         f.write(final)
         
-    console.print(Panel(f"[bold green]✅ Sucesso![/bold green]\nO manual [bold white]{nome_projeto}[/bold white] foi gerado e salvo como [cyan]{arquivo_saida}[/cyan].", border_style="green"))
+    console.print(Panel(f"[bold green]✅ Sucesso![/bold green]\nO manual [bold white]{nome_projeto}[/bold white] foi salvo na pasta:\n[cyan]{arquivo_saida}[/cyan]", border_style="green"))
 
 if __name__ == "__main__":
     gerar_html()
